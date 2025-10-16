@@ -1,0 +1,108 @@
+ID:66
+
+Code:-
+
+#define potentio A0
+#define LDR A1
+#define green 10
+#define red 7
+#define lswitch 2
+#define buzzer 11
+const bool COMMON_CATHODE = false;
+int segPins[7] = {4, 3, A2, A3, A4, 5, 6};
+const byte digits[10][7] = {
+  {1,1,1,1,1,1,0},  // 0
+  {0,1,1,0,0,0,0}, // 1
+  {1,1,0,1,1,0,1},// 2
+  {1,1,1,1,0,0,1},// 3
+  {0,1,1,0,0,1,1}, // 4
+  {1,0,1,1,0,1,1}, // 5
+  {1,0,1,1,1,1,1}, // 6
+  {1,1,1,0,0,0,0}, // 7
+  {1,1,1,1,1,1,1}, // 8
+  {1,1,1,1,0,1,1} // 9
+};
+int buttonUp = A5;
+int buttonDown = 8;
+int counter = 0;
+const unsigned long debounceDelay = 20;
+unsigned long lastDebounceUp = 0;
+unsigned long lastDebounceDown = 0;
+int lastRawUp = HIGH, stableUp = HIGH;
+int lastRawDown = HIGH, stableDown = HIGH;
+
+void setup() {
+  pinMode(potentio,INPUT);
+  pinMode(LDR,INPUT);
+  pinMode(green,OUTPUT);
+  pinMode(red,OUTPUT);
+  pinMode(lswitch,INPUT);
+  pinMode(buzzer,OUTPUT);
+  for (int i=0; i<7; i++) 
+  pinMode(segPins[i], OUTPUT);
+  pinMode(buttonUp, INPUT_PULLUP);
+  pinMode(buttonDown, INPUT_PULLUP);
+  showDigit(counter);
+  Serial.begin(9600);
+}
+
+void loop() {
+  int Rpot = analogRead(potentio);
+  int mappedrpot = map ( Rpot,0,1023,0,255);
+  int rLDR = analogRead(LDR);
+  int mappedrldr = map (rLDR,50,950,0,255);
+  if (mappedrldr <= 127){
+    analogWrite(green,mappedrpot);
+  }else if(mappedrldr > 127){
+    analogWrite(green,LOW);
+  }
+  
+  int Lswitch = digitalRead(lswitch);
+  if (mappedrldr > 127 && Lswitch == 0){
+    tone(buzzer,2000,250);
+    digitalWrite(red,HIGH);
+    tone(buzzer,2000);
+    digitalWrite(red,LOW);
+    delay(500);
+  }else if (mappedrldr < 127 && Lswitch == 1 || Lswitch == 0){
+    noTone(buzzer);
+    digitalWrite(red,LOW);
+    delay(500);
+  }
+ int rawUp = digitalRead(buttonUp);
+  if (rawUp != lastRawUp) lastDebounceUp = millis();
+  if (millis() - lastDebounceUp > debounceDelay) {
+    if (rawUp != stableUp) {
+      stableUp = rawUp;
+      if (stableUp == LOW) { 
+        counter++; if (counter > 9) counter = 0;
+        showDigit(counter);
+        Serial.print("Up -> "); Serial.println(counter);
+      }
+    }
+  }
+   lastRawUp = rawUp;
+
+  
+  int rawDown = digitalRead(buttonDown);
+  if (rawDown != lastRawDown) lastDebounceDown = millis();
+  if (millis() - lastDebounceDown > debounceDelay) {
+    if (rawDown != stableDown) {
+      stableDown = rawDown;
+      if (stableDown == LOW) {
+        counter--; if (counter < 0) counter = 9;
+        showDigit(counter);
+        Serial.print("Down -> "); Serial.println(counter);
+      }
+    }
+  }
+    lastRawDown = rawDown;
+}
+
+void showDigit(int num) {
+  int onState  = COMMON_CATHODE ? HIGH : LOW;
+  int offState = onState == HIGH ? LOW : HIGH;
+  for (int i=0; i<7; i++) {
+    digitalWrite(segPins[i], digits[num][i] ? onState : offState);
+  }
+}
